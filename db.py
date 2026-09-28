@@ -106,20 +106,19 @@ class Database:
 
     async def change_stock(self, name, delta, action, unit_price, reason, actor_id, actor_name):
         db = self._db()
-        async with db.execute("BEGIN"):
-            cur = await db.execute("SELECT * FROM items WHERE name = ?", (name.strip(),))
-            item = await cur.fetchone()
-            if not item:
-                raise ValueError("Item not found.")
-            new_qty = item["quantity"] + delta
-            if new_qty < 0:
-                raise ValueError(f"Not enough stock. Current stock: {item['quantity']}.")
-            ts = now_iso()
-            await db.execute("UPDATE items SET quantity=?, updated_at=? WHERE id=?", (new_qty, ts, item["id"]))
-            await db.execute(
-                "INSERT INTO transactions(item_id, action, quantity, unit_price, reason, actor_id, actor_name, created_at) VALUES(?,?,?,?,?,?,?,?)",
-                (item["id"], action, abs(delta), unit_price, reason, actor_id, actor_name, ts),
-            )
+        cur = await db.execute("SELECT * FROM items WHERE name = ?", (name.strip(),))
+        item = await cur.fetchone()
+        if not item:
+            raise ValueError("Item not found.")
+        new_qty = item["quantity"] + delta
+        if new_qty < 0:
+            raise ValueError(f"Not enough stock. Current stock: {item['quantity']}.")
+        ts = now_iso()
+        await db.execute("UPDATE items SET quantity=?, updated_at=? WHERE id=?", (new_qty, ts, item["id"]))
+        await db.execute(
+            "INSERT INTO transactions(item_id, action, quantity, unit_price, reason, actor_id, actor_name, created_at) VALUES(?,?,?,?,?,?,?,?)",
+            (item["id"], action, abs(delta), unit_price, reason, actor_id, actor_name, ts),
+        )
         await db.commit()
         return await self.get_item(name)
 
